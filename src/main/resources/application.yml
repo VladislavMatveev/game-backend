@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    properties:
+      hibernate:
+        default_schema: "game"
+
+application:
+  endpoint:
+    root: api/v1
+    new: ${application.endpoint.root}/new
+    move: ${application.endpoint.root}/move
+    cancel: ${application.endpoint.root}/cancel
+    desk: ${application.endpoint.root}/desk
+

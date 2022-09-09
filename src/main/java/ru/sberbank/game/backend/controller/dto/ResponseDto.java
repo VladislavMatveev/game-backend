@@ -1,6 +1,7 @@
 package ru.sberbank.game.backend.controller.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.springframework.http.HttpStatus;
@@ -8,6 +9,7 @@ import ru.sberbank.game.backend.utils.enums.GameStatus;
 
 @Data
 @Accessors(chain = true)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class ResponseDto {
     private String uid;
     private GameStatus status = GameStatus.IN_PROGRESS;

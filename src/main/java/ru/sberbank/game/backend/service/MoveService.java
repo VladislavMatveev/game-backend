@@ -31,12 +31,13 @@ public class MoveService {
     }
 
     private void makeMove(long sessionId, String move, String moveBy, String moveSign) {
-        moveRepository.save(new Move()
-                .setSessionId(sessionId)
-                .setMove(move)
-                .setMoveDate(new Timestamp(new Date().getTime()))
-                .setMoveBy(moveBy)
-                .setMoveSign(moveSign)
+        moveRepository.save(Move.builder()
+                .sessionId(sessionId)
+                .move(move)
+                .moveDate(new Timestamp(new Date().getTime()))
+                .moveBy(moveBy)
+                .moveSign(moveSign)
+                .build()
         );
     }
 

@@ -15,9 +15,11 @@ public class SessionService {
     private final SessionRepository sessionRepository;
 
     public Session newSession(boolean firstMove) {
-        return sessionRepository.save(new Session()
-                .setFirstMove(firstMove)
-                .setUid(String.valueOf(randomUUID())));
+        return sessionRepository.save(Session.builder()
+                        .firstMove(firstMove)
+                        .uid(String.valueOf(randomUUID()))
+                        .build()
+                );
     }
 
     public Session getSession(String uid) {

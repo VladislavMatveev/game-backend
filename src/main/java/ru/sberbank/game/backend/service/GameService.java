@@ -30,8 +30,9 @@ public class GameService {
                 Boolean.parseBoolean(firstMove)
         );
 
-        Desk desk = new Desk()
-                .setSessionId(session.getId());
+        Desk desk = Desk.builder()
+                .sessionId(session.getId())
+                .build();
 
         if (!session.isFirstMove()) {
             makeMachineMove(
@@ -42,7 +43,8 @@ public class GameService {
 
         deskService.save(desk);
 
-        return getCommonResponse(desk, session.getUid());
+        return getCommonResponse(desk, session.getUid())
+                .build();
     }
     public ResponseDto makeMove(String uid, int move) {
 
@@ -64,8 +66,8 @@ public class GameService {
 
         if (isTableFull(desk)) {
             return getCommonResponse(desk, uid)
-                    .setHttpStatus(HttpStatus.FORBIDDEN)
-                    .setStatus(GameStatus.FINISHED)
+                    .httpStatus(HttpStatus.FORBIDDEN)
+                    .status(GameStatus.FINISHED)
                     .build();
         }
 
@@ -79,17 +81,17 @@ public class GameService {
 
         if (checkWin(human_sign, desk)) {
             return getCommonResponse(desk, uid)
-                    .setMessage("You win!")
-                    .setStatus(GameStatus.FINISHED)
-                    .setWinner("Human")
+                    .message("You win!")
+                    .status(GameStatus.FINISHED)
+                    .winner("Human")
                     .build();
         }
 
         if (isTableFull(desk)) {
             return getCommonResponse(desk, uid)
-                    .setHttpStatus(HttpStatus.FORBIDDEN)
-                    .setMessage("Draw!")
-                    .setStatus(GameStatus.FINISHED)
+                    .httpStatus(HttpStatus.FORBIDDEN)
+                    .message("Draw!")
+                    .status(GameStatus.FINISHED)
                     .build();
         }
 
@@ -102,22 +104,22 @@ public class GameService {
 
         if (checkWin(machine_sign, desk)) {
             return getCommonResponse(desk, uid)
-                    .setHttpStatus(HttpStatus.FORBIDDEN)
-                    .setMessage("You lose!")
-                    .setStatus(GameStatus.FINISHED)
-                    .setWinner("Machine")
+                    .httpStatus(HttpStatus.FORBIDDEN)
+                    .message("You lose!")
+                    .status(GameStatus.FINISHED)
+                    .winner("Machine")
                     .build();
         }
 
         if (isTableFull(desk)) {
             return getCommonResponse(desk, uid)
-                    .setHttpStatus(HttpStatus.FORBIDDEN)
-                    .setMessage("Draw!")
-                    .setStatus(GameStatus.FINISHED)
+                    .httpStatus(HttpStatus.FORBIDDEN)
+                    .message("Draw!")
+                    .status(GameStatus.FINISHED)
                     .build();
         }
 
-        return getCommonResponse(desk, uid);
+        return getCommonResponse(desk, uid).build();
     }
 
     private void checkMoveIsLegal(Desk desk, int move) {
@@ -137,12 +139,12 @@ public class GameService {
 
         if (checkWin(SIGN_X, desk) || checkWin(SIGN_O, desk)) {
             return getCommonResponse(desk, uid)
-                    .setHttpStatus(HttpStatus.FORBIDDEN)
-                    .setStatus(GameStatus.FINISHED)
+                    .httpStatus(HttpStatus.FORBIDDEN)
+                    .status(GameStatus.FINISHED)
                     .build();
         }
 
-        return getCommonResponse(desk, uid);
+        return getCommonResponse(desk, uid).build();
     }
     public ResponseDto cancelMove(String uid) {
 
@@ -157,7 +159,7 @@ public class GameService {
             cancelLastMove(desk);
         }
 
-        return getCommonResponse(desk, uid);
+        return getCommonResponse(desk, uid).build();
     }
 
     // Прочее
@@ -200,11 +202,10 @@ public class GameService {
                 move);
     }
 
-    private ResponseDto getCommonResponse(Desk desk, String uid) {
-        return new ResponseDto()
-                .setUid(uid)
-                .setDesk(deskService.drawField(desk))
-                .build();
+    private ResponseDto.ResponseDtoBuilder getCommonResponse(Desk desk, String uid) {
+        return ResponseDto.builder()
+                .uid(uid)
+                .desk(deskService.drawField(desk));
     }
 
     // Логика

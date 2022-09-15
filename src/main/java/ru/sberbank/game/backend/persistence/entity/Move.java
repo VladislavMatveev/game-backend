@@ -1,15 +1,16 @@
 package ru.sberbank.game.backend.persistence.entity;
 
-import lombok.Data;
-import lombok.experimental.Accessors;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
 
 @Entity
 @Table(name = "moves")
-@Data
-@Accessors(chain = true)
+@Getter
+@NoArgsConstructor
 public class Move {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
@@ -19,5 +20,12 @@ public class Move {
     private String moveBy;
     private Timestamp moveDate;
     private String moveSign;
-
+    @Builder
+    private Move (long sessionId, String move, String moveBy, Timestamp moveDate, String moveSign) {
+        this.sessionId = sessionId;
+        this.move = move;
+        this.moveBy = moveBy;
+        this.moveDate = moveDate;
+        this.moveSign = moveSign;
+    }
 }

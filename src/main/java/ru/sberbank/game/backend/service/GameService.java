@@ -51,6 +51,14 @@ public class GameService {
         Session session = sessionService.getSession(uid);
         Desk desk = deskService.getDesk(session.getId());
 
+        if (checkWin(SIGN_X, desk) || checkWin(SIGN_O, desk)) {
+            return getCommonResponse(desk, uid)
+                    .message("Game end!")
+                    .status(GameStatus.FINISHED)
+                    .httpStatus(HttpStatus.FORBIDDEN)
+                    .build();
+        }
+
         checkMoveIsLegal(desk, move);
 
         String human_sign;

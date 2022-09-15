@@ -1,9 +1,18 @@
 spring:
+  application:
+    name: "The Game"
   jpa:
     properties:
       hibernate:
-        default_schema: "game"
-
+        default_schema: ${SQL_DATABASE_DEFAULT_SCHEMA}
+  datasource:
+    url: ${SQL_DATABASE_HOST}:${SQL_DATABASE_PORT}/${SQL_DATABASE_NAME}
+    username: ${SQL_DATABASE_USERNAME}
+    password: ${SQL_DATABASE_PASSWORD}
+   
+  server:
+    port: ${SERVER_PORT}
+      
 application:
   endpoint:
     root: api/v1

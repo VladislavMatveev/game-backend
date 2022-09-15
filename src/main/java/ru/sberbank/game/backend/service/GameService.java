@@ -152,6 +152,12 @@ public class GameService {
         Desk desk = deskService.getDesk(session.getId());
         String lastMoveBy = moveService.getLastMove(session.getId()).getMoveBy();
 
+        if (moveService.noHumanMoves(session.getId())) {
+            return getCommonResponse(desk, uid)
+                    .httpStatus(HttpStatus.NOT_FOUND)
+                    .build();
+        }
+
         cancelLastMove(desk);
 
         // Если последний ход был Машины, то еще раз отменяем ход - человека
@@ -163,7 +169,6 @@ public class GameService {
     }
 
     // Прочее
-
     private void makeHumanMove(Desk desk, long sessionId, String move, String sign) {
         moveService.makeHumanMove(
                 sessionId,

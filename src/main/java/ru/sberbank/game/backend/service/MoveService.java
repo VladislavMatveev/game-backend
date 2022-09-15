@@ -46,6 +46,11 @@ public class MoveService {
                 .orElseThrow(MoveNotFoundException::new);
     }
 
+    public Boolean noHumanMoves(long sessionId) {
+        return moveRepository.findTopBySessionIdAndMoveBy(sessionId, "Human")
+                .isEmpty();
+    }
+
     public String cancelMove(long sessionId) {
         Move move = getLastMove(sessionId);
         moveRepository.delete(move);

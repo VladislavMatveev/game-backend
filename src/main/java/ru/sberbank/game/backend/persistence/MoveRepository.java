@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface MoveRepository extends JpaRepository<Move, Long> {
     Optional<Move> findTopBySessionIdOrderByIdDesc(long id);
+
+    Optional<Move> findTopBySessionIdAndMoveBy(long sessionId, String moveBy);
 }

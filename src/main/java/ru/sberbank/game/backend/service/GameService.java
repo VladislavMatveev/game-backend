@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.sberbank.game.backend.controller.dto.DeskDto;
 import ru.sberbank.game.backend.controller.dto.ResponseDto;
+import ru.sberbank.game.backend.exception.GameEndException;
 import ru.sberbank.game.backend.exception.IllegalMoveException;
 import ru.sberbank.game.backend.persistence.entity.Session;
 import ru.sberbank.game.backend.utils.enums.GameStatus;
@@ -43,20 +44,14 @@ public class GameService {
         return getCommonResponse(desk, session.getUid())
                 .build();
     }
+
     public ResponseDto makeMove(String uid, int move) {
 
         Session session = sessionService.getSession(uid);
         DeskDto desk = deskService.getDeskDto(session.getId());
 
-        if (checkWin(SIGN_X, desk.getDeskArr()) || checkWin(SIGN_O, desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .message("Game end!")
-                    .status(GameStatus.FINISHED)
-                    .httpStatus(HttpStatus.FORBIDDEN)
-                    .build();
-        }
-
-        checkMoveIsLegal(desk, move);
+        checkTableIsFull(session, desk);
+        checkMoveIsLegal(session, desk, move);
 
         String human_sign;
         String machine_sign;
@@ -69,13 +64,6 @@ public class GameService {
             machine_sign = SIGN_X;
         }
 
-        if (isTableFull(desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .httpStatus(HttpStatus.FORBIDDEN)
-                    .status(GameStatus.FINISHED)
-                    .build();
-        }
-
         // ход человека
         makeHumanMove(
                 desk,
@@ -84,72 +72,33 @@ public class GameService {
                 human_sign
         );
 
-        if (checkWin(human_sign, desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .message("You win!")
-                    .status(GameStatus.FINISHED)
-                    .winner("Human")
-                    .build();
-        }
-
-        if (isTableFull(desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .httpStatus(HttpStatus.FORBIDDEN)
-                    .message("Draw!")
-                    .status(GameStatus.FINISHED)
-                    .build();
-        }
+        checkWin(human_sign, desk.getDeskArr(), "Human", session);
+        checkTableIsFull(session, desk);
 
         // ход машины
         makeMachineMove(
                 desk,
                 machine_sign
-                );
+        );
 
-        if (checkWin(machine_sign, desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .httpStatus(HttpStatus.FORBIDDEN)
-                    .message("You lose!")
-                    .status(GameStatus.FINISHED)
-                    .winner("Machine")
-                    .build();
-        }
-
-        if (isTableFull(desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .httpStatus(HttpStatus.FORBIDDEN)
-                    .message("Draw!")
-                    .status(GameStatus.FINISHED)
-                    .build();
-        }
+        checkWin(machine_sign, desk.getDeskArr(), "Machine", session);
+        checkTableIsFull(session, desk);
 
         return getCommonResponse(desk, uid).build();
     }
-    private void checkMoveIsLegal(DeskDto desk, int move) {
 
-        String currentValue = deskService.getFieldValue(desk.getDeskArr(), move);
-
-        if (currentValue.equals(SIGN_O) || currentValue.equals(SIGN_X)) {
-            throw new IllegalMoveException(Integer.toString(move));
-        }
-    }
     public ResponseDto getStatus(String uid) {
 
         Session session = sessionService.getSession(uid);
         DeskDto desk = deskService.getDeskDto(session.getId());
 
-        if (checkWin(SIGN_X, desk.getDeskArr()) || checkWin(SIGN_O, desk.getDeskArr())) {
-            return getCommonResponse(desk, uid)
-                    .httpStatus(HttpStatus.FORBIDDEN)
-                    .status(GameStatus.FINISHED)
-                    .build();
-        }
-
         return ResponseDto.builder()
                 .uid(uid)
                 .desk(deskService.drawField(desk))
+                .status(session.getStatus())
                 .build();
     }
+
     public ResponseDto cancelMove(String uid) {
 
         Session session = sessionService.getSession(uid);
@@ -184,10 +133,11 @@ public class GameService {
                 Integer.parseInt(move),
                 sign,
                 desk.getDeskArr()
-                );
+        );
 
         deskService.save(desk);
     }
+
     private void makeMachineMove(DeskDto desk, String sign) {
 
         String move = newMachineMove(desk);
@@ -205,6 +155,7 @@ public class GameService {
 
         deskService.save(desk);
     }
+
     private void cancelLastMove(DeskDto desk) {
 
         String move = moveService.cancelMove(desk.getSessionId());
@@ -241,20 +192,50 @@ public class GameService {
         return String.valueOf(num);
     }
 
-    public boolean checkWin(String sign, String[][] deskArr) {
+    private void checkMoveIsLegal(Session session, DeskDto desk, int move) {
+
+        if (session.getStatus() == GameStatus.FINISHED) {
+            throw new IllegalMoveException("Game finished!");
+        }
+
+        String currentValue = deskService.getFieldValue(desk.getDeskArr(), move);
+
+        if (currentValue.equals(SIGN_O) || currentValue.equals(SIGN_X)) {
+            throw new IllegalMoveException(Integer.toString(move));
+        }
+    }
+
+    private void checkTableIsFull(Session session, DeskDto desk) {
+
+        if (isTableFull(desk.getDeskArr())) {
+            sessionService.setStatus(session, GameStatus.FINISHED, "Draw");
+            throw new GameEndException("Game draw!");
+        }
+    }
+
+    private void checkWin(String sign, String[][] deskArr, String moveBy, Session session) {
+
+        boolean gameEnd = false;
         // check rows & columns
         for (int i = 0; i < 3; i++) {
             if (deskArr[i][0].equals(sign) && deskArr[i][1].equals(sign) && deskArr[i][2].equals(sign)
-                    || deskArr[0][i].equals(sign) && deskArr[1][i].equals(sign) && deskArr[2][i].equals(sign))
-                return true;
+                    || deskArr[0][i].equals(sign) && deskArr[1][i].equals(sign) && deskArr[2][i].equals(sign)) {
+                gameEnd = true;
+                break;
+            }
         }
         // check diagonals
         if (deskArr[0][0].equals(sign) && deskArr[1][1].equals(sign) && deskArr[2][2].equals(sign)
-                || deskArr[2][0].equals(sign) && deskArr[1][1].equals(sign) && deskArr[0][2].equals(sign))
-            return true;
+                || deskArr[2][0].equals(sign) && deskArr[1][1].equals(sign) && deskArr[0][2].equals(sign)) {
+            gameEnd = true;
+        }
 
-        return false;
+        if (gameEnd) {
+            sessionService.setStatus(session, GameStatus.FINISHED, moveBy);
+            throw new GameEndException(moveBy + " win!");
+        }
     }
+
     public boolean isTableFull(String[][] deskArr) {
         for (int row = 0; row < 3; row++)
             for (int col = 0; col < 3; col++)

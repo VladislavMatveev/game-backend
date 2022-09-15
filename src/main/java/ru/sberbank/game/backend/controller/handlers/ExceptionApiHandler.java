@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import ru.sberbank.game.backend.controller.dto.ErrorMessage;
+import ru.sberbank.game.backend.exception.GameEndException;
 import ru.sberbank.game.backend.exception.IllegalMoveException;
 import ru.sberbank.game.backend.exception.MoveNotFoundException;
 import ru.sberbank.game.backend.exception.SessionNotFoundException;
@@ -48,7 +49,16 @@ public class ExceptionApiHandler {
     }
 
     @ExceptionHandler(IllegalMoveException.class)
-    public ResponseEntity<ErrorMessage> moveNotFoundException(IllegalMoveException exception) {
+    public ResponseEntity<ErrorMessage> illegalMoveException(IllegalMoveException exception) {
+        return new ResponseEntity<>(
+                new ErrorMessage()
+                        .setMessage(exception.getMessage()),
+                HttpStatus.FORBIDDEN
+        );
+    }
+
+    @ExceptionHandler(IllegalMoveException.class)
+    public ResponseEntity<ErrorMessage> gameEndException(GameEndException exception) {
         return new ResponseEntity<>(
                 new ErrorMessage()
                         .setMessage(exception.getMessage()),

@@ -3,9 +3,9 @@ package ru.sberbank.game.backend.service;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import ru.sberbank.game.backend.controller.dto.DeskDto;
 import ru.sberbank.game.backend.controller.dto.ResponseDto;
 import ru.sberbank.game.backend.exception.IllegalMoveException;
-import ru.sberbank.game.backend.persistence.entity.Desk;
 import ru.sberbank.game.backend.persistence.entity.Session;
 import ru.sberbank.game.backend.utils.enums.GameStatus;
 
@@ -16,8 +16,8 @@ import java.util.Random;
 @AllArgsConstructor
 public class GameService {
 
-    final String SIGN_X = "X";
-    final String SIGN_O = "O";
+    private final String SIGN_X = "X";
+    private final String SIGN_O = "O";
 
     private final SessionService sessionService;
     private final MoveService moveService;
@@ -30,14 +30,11 @@ public class GameService {
                 Boolean.parseBoolean(firstMove)
         );
 
-        Desk desk = Desk.builder()
-                .sessionId(session.getId())
-                .build();
+        DeskDto desk = deskService.getDeskDto(session.getId());
 
         if (!session.isFirstMove()) {
             makeMachineMove(
                     desk,
-                    session.getId(),
                     SIGN_X);
         }
 
@@ -49,9 +46,9 @@ public class GameService {
     public ResponseDto makeMove(String uid, int move) {
 
         Session session = sessionService.getSession(uid);
-        Desk desk = deskService.getDesk(session.getId());
+        DeskDto desk = deskService.getDeskDto(session.getId());
 
-        if (checkWin(SIGN_X, desk) || checkWin(SIGN_O, desk)) {
+        if (checkWin(SIGN_X, desk.getDeskArr()) || checkWin(SIGN_O, desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .message("Game end!")
                     .status(GameStatus.FINISHED)
@@ -72,7 +69,7 @@ public class GameService {
             machine_sign = SIGN_X;
         }
 
-        if (isTableFull(desk)) {
+        if (isTableFull(desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .httpStatus(HttpStatus.FORBIDDEN)
                     .status(GameStatus.FINISHED)
@@ -87,7 +84,7 @@ public class GameService {
                 human_sign
         );
 
-        if (checkWin(human_sign, desk)) {
+        if (checkWin(human_sign, desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .message("You win!")
                     .status(GameStatus.FINISHED)
@@ -95,7 +92,7 @@ public class GameService {
                     .build();
         }
 
-        if (isTableFull(desk)) {
+        if (isTableFull(desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .httpStatus(HttpStatus.FORBIDDEN)
                     .message("Draw!")
@@ -106,11 +103,10 @@ public class GameService {
         // ход машины
         makeMachineMove(
                 desk,
-                session.getId(),
                 machine_sign
-        );
+                );
 
-        if (checkWin(machine_sign, desk)) {
+        if (checkWin(machine_sign, desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .httpStatus(HttpStatus.FORBIDDEN)
                     .message("You lose!")
@@ -119,7 +115,7 @@ public class GameService {
                     .build();
         }
 
-        if (isTableFull(desk)) {
+        if (isTableFull(desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .httpStatus(HttpStatus.FORBIDDEN)
                     .message("Draw!")
@@ -129,35 +125,35 @@ public class GameService {
 
         return getCommonResponse(desk, uid).build();
     }
+    private void checkMoveIsLegal(DeskDto desk, int move) {
 
-    private void checkMoveIsLegal(Desk desk, int move) {
-
-        String currentValue = deskService.getFieldValue(desk, move);
+        String currentValue = deskService.getFieldValue(desk.getDeskArr(), move);
 
         if (currentValue.equals(SIGN_O) || currentValue.equals(SIGN_X)) {
             throw new IllegalMoveException(Integer.toString(move));
         }
-
     }
-
     public ResponseDto getStatus(String uid) {
 
         Session session = sessionService.getSession(uid);
-        Desk desk = deskService.getDesk(session.getId());
+        DeskDto desk = deskService.getDeskDto(session.getId());
 
-        if (checkWin(SIGN_X, desk) || checkWin(SIGN_O, desk)) {
+        if (checkWin(SIGN_X, desk.getDeskArr()) || checkWin(SIGN_O, desk.getDeskArr())) {
             return getCommonResponse(desk, uid)
                     .httpStatus(HttpStatus.FORBIDDEN)
                     .status(GameStatus.FINISHED)
                     .build();
         }
 
-        return getCommonResponse(desk, uid).build();
+        return ResponseDto.builder()
+                .uid(uid)
+                .desk(deskService.drawField(desk))
+                .build();
     }
     public ResponseDto cancelMove(String uid) {
 
         Session session = sessionService.getSession(uid);
-        Desk desk = deskService.getDesk(session.getId());
+        DeskDto desk = deskService.getDeskDto(session.getId());
         String lastMoveBy = moveService.getLastMove(session.getId()).getMoveBy();
 
         if (moveService.noHumanMoves(session.getId())) {
@@ -177,7 +173,7 @@ public class GameService {
     }
 
     // Прочее
-    private void makeHumanMove(Desk desk, long sessionId, String move, String sign) {
+    private void makeHumanMove(DeskDto desk, long sessionId, String move, String sign) {
         moveService.makeHumanMove(
                 sessionId,
                 move,
@@ -185,37 +181,43 @@ public class GameService {
         );
 
         deskService.setFieldValue(
-                desk,
                 Integer.parseInt(move),
-                sign
-        );
+                sign,
+                desk.getDeskArr()
+                );
+
+        deskService.save(desk);
     }
-    private void makeMachineMove(Desk desk, long sessionId, String sign) {
+    private void makeMachineMove(DeskDto desk, String sign) {
 
         String move = newMachineMove(desk);
 
         moveService.makeMachineMove(
-                sessionId,
+                desk.getSessionId(),
                 move,
                 sign
         );
 
         deskService.setFieldValue(
-                desk,
                 Integer.parseInt(move),
-                sign);
+                sign,
+                desk.getDeskArr());
+
+        deskService.save(desk);
     }
-    private void cancelLastMove(Desk desk) {
+    private void cancelLastMove(DeskDto desk) {
 
         String move = moveService.cancelMove(desk.getSessionId());
 
         deskService.setFieldValue(
-                desk,
                 Integer.parseInt(move),
-                move);
+                move,
+                desk.getDeskArr());
+
+        deskService.save(desk);
     }
 
-    private ResponseDto.ResponseDtoBuilder getCommonResponse(Desk desk, String uid) {
+    private ResponseDto.ResponseDtoBuilder getCommonResponse(DeskDto desk, String uid) {
         return ResponseDto.builder()
                 .uid(uid)
                 .desk(deskService.drawField(desk));
@@ -223,13 +225,13 @@ public class GameService {
 
     // Логика
 
-    private String newMachineMove(Desk desk) {
+    private String newMachineMove(DeskDto desk) {
 
         Random random = new Random();
         int num = random.nextInt(9) + 1;
 
         while (true) {
-            String fieldValue = deskService.getFieldValue(desk, num);
+            String fieldValue = deskService.getFieldValue(desk.getDeskArr(), num);
             if (fieldValue.equals(SIGN_X) || fieldValue.equals(SIGN_O)) {
                 num = random.nextInt(9) + 1;
                 continue;
@@ -238,34 +240,26 @@ public class GameService {
         }
         return String.valueOf(num);
     }
-    private boolean checkWin(String sign, Desk desk) {
 
-        if (desk.getF1().equals(sign) && desk.getF2().equals(sign) && desk.getF3().equals(sign)
-                || desk.getF4().equals(sign) && desk.getF5().equals(sign) && desk.getF6().equals(sign)
-                || desk.getF7().equals(sign) && desk.getF8().equals(sign) && desk.getF9().equals(sign))
-            return true;
-
-        if (desk.getF1().equals(sign) && desk.getF4().equals(sign) && desk.getF7().equals(sign)
-                || desk.getF2().equals(sign) && desk.getF5().equals(sign) && desk.getF8().equals(sign)
-                || desk.getF3().equals(sign) && desk.getF6().equals(sign) && desk.getF9().equals(sign))
-            return true;
-
-        if ((desk.getF1().equals(sign) && desk.getF5().equals(sign) && desk.getF9().equals(sign))
-                || (desk.getF3().equals(sign) && desk.getF5().equals(sign) && desk.getF7().equals(sign)))
+    public boolean checkWin(String sign, String[][] deskArr) {
+        // check rows & columns
+        for (int i = 0; i < 3; i++) {
+            if (deskArr[i][0].equals(sign) && deskArr[i][1].equals(sign) && deskArr[i][2].equals(sign)
+                    || deskArr[0][i].equals(sign) && deskArr[1][i].equals(sign) && deskArr[2][i].equals(sign))
+                return true;
+        }
+        // check diagonals
+        if (deskArr[0][0].equals(sign) && deskArr[1][1].equals(sign) && deskArr[2][2].equals(sign)
+                || deskArr[2][0].equals(sign) && deskArr[1][1].equals(sign) && deskArr[0][2].equals(sign))
             return true;
 
         return false;
     }
-
-    private boolean isTableFull(Desk desk) {
-        return (desk.getF1().equals(SIGN_O) || desk.getF1().equals(SIGN_X))
-                && (desk.getF2().equals(SIGN_O) || desk.getF2().equals(SIGN_X))
-                && (desk.getF3().equals(SIGN_O) || desk.getF3().equals(SIGN_X))
-                && (desk.getF4().equals(SIGN_O) || desk.getF4().equals(SIGN_X))
-                && (desk.getF5().equals(SIGN_O) || desk.getF5().equals(SIGN_X))
-                && (desk.getF6().equals(SIGN_O) || desk.getF6().equals(SIGN_X))
-                && (desk.getF7().equals(SIGN_O) || desk.getF7().equals(SIGN_X))
-                && (desk.getF8().equals(SIGN_O) || desk.getF8().equals(SIGN_X))
-                && (desk.getF9().equals(SIGN_O) || desk.getF9().equals(SIGN_X));
+    public boolean isTableFull(String[][] deskArr) {
+        for (int row = 0; row < 3; row++)
+            for (int col = 0; col < 3; col++)
+                if (!deskArr[row][col].equals(SIGN_X) && !deskArr[row][col].equals(SIGN_O))
+                    return false;
+        return true;
     }
 }
